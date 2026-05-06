@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Users, FileText, Calculator, Trophy, LogOut, Plus, Trash2, Edit3, 
-  School, ChevronRight, TrendingUp, Award, CheckCircle2, Clock, X, Search, Printer, Download, RefreshCw, CloudCloud
+  School, ChevronRight, TrendingUp, Award, CheckCircle2, Clock, X, Search, Printer, Download, RefreshCw
 } from 'lucide-react';
 
 export default function App() {
