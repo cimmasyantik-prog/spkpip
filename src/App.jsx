@@ -9,7 +9,7 @@ export default function App() {
   const [activeTab, setActiveTab] = useState('dashboard');
 
   // =========================================================================
-  // 🔴 PASTE URL WEB APP GOOGLE APPS SCRIPT ANDA DI BAWAH INI 🔴
+  // URL WEB APP GOOGLE APPS SCRIPT ANDA
   // =========================================================================
   const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbyC_Bwh11knw9nTWUf90Kft-bfc9DGQySgabcPwxQ34r2ZAC8BEyTO8A-Qkd63ESOiWjw/exec";
   
@@ -17,7 +17,7 @@ export default function App() {
   const [criteria, setCriteria] = useState([]);
   const [alternatives, setAlternatives] = useState([]);
 
-  // Default data (digunakan jika API belum di-set)
+  // Default data (digunakan jika API gagal dimuat)
   const defaultCriteria = [
     { id: 'C1', name: 'Penghasilan Orang Tua', type: 'Cost', weight: 2 },
     { id: 'C2', name: 'Rata-rata Nilai Raport', type: 'Benefit', weight: 2 },
@@ -48,7 +48,7 @@ export default function App() {
 
   // 1. Ambil data dari Google Sheets saat aplikasi pertama kali dimuat
   useEffect(() => {
-    if (WEB_APP_URL === "https://script.google.com/macros/s/AKfycbyC_Bwh11knw9nTWUf90Kft-bfc9DGQySgabcPwxQ34r2ZAC8BEyTO8A-Qkd63ESOiWjw/exec" || !WEB_APP_URL || !WEB_APP_URL.startsWith('http')) {
+    if (!WEB_APP_URL || !WEB_APP_URL.startsWith('http')) {
       setCriteria(defaultCriteria);
       setAlternatives(defaultAlternatives);
       return;
@@ -81,13 +81,13 @@ export default function App() {
 
   // 2. Fungsi untuk mengirim (POST) data perubahan ke Google Sheets
   const syncToCloud = async (updatedCriteria, updatedAlternatives) => {
-    if (WEB_APP_URL === "https://script.google.com/macros/s/AKfycbyC_Bwh11knw9nTWUf90Kft-bfc9DGQySgabcPwxQ34r2ZAC8BEyTO8A-Qkd63ESOiWjw/exec" || !WEB_APP_URL || !WEB_APP_URL.startsWith('http')) return;
+    if (!WEB_APP_URL || !WEB_APP_URL.startsWith('http')) return;
     
     setSyncStatus('syncing');
     try {
       await fetch(WEB_APP_URL, {
         method: "POST",
-        headers: { "Content-Type": "text/plain;charset=utf-8" }, // text/plain hindari masalah CORS Apps Script
+        headers: { "Content-Type": "text/plain;charset=utf-8" }, 
         body: JSON.stringify({
           action: "saveAll",
           data: {
@@ -102,7 +102,6 @@ export default function App() {
       setSyncStatus('offline');
     }
   };
-
 
   // =========================================================================
   // CRUD HANDLERS
@@ -208,7 +207,10 @@ export default function App() {
 
   // --- VIKOR CALCULATION ALGORITHM ---
   const calculateVikor = () => {
-    if (alternatives.length === 0 || criteria.length === 0) return alert("Data alternatif dan kriteria tidak boleh kosong!");
+    // Validasi agar tidak crash jika data kosong (Dihilangkan penggunaan alert)
+    if (alternatives.length === 0 || criteria.length === 0) {
+        return; 
+    }
 
     const fPlus = {};
     const fMinus = {};
@@ -288,7 +290,7 @@ export default function App() {
   };
 
   const SyncIndicator = () => {
-    if (WEB_APP_URL === "MASUKKAN_URL_APPS_SCRIPT_ANDA_DISINI" || !WEB_APP_URL || !WEB_APP_URL.startsWith('http')) return null;
+    if (!WEB_APP_URL || !WEB_APP_URL.startsWith('http')) return null;
     
     if (syncStatus === 'syncing') return <div className="flex items-center gap-1.5 text-xs text-amber-500 font-medium"><RefreshCw size={14} className="animate-spin"/> Menyinkronkan...</div>;
     if (syncStatus === 'online') return <div className="flex items-center gap-1.5 text-xs text-emerald-500 font-medium"><CheckCircle2 size={14}/> Cloud Terhubung</div>;
