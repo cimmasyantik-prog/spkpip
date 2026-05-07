@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Users, FileText, Calculator, Trophy, LogOut, Plus, Trash2, Edit3, 
-  School, ChevronRight, TrendingUp, Award, CheckCircle2, Clock, X, Search, Printer, Download, RefreshCw, Menu, Info
+  School, ChevronRight, TrendingUp, Award, CheckCircle2, Clock, X, Search, Printer, Download, RefreshCw, Menu, Info, ArrowLeft
 } from 'lucide-react';
 
 export default function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [activeTab, setActiveTab] = useState('dashboard');
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false); // State untuk menu HP
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false); // State baru untuk Modal Logout
 
   // =========================================================================
   // URL WEB APP GOOGLE APPS SCRIPT ANDA
@@ -38,11 +39,59 @@ export default function App() {
   const [searchQuery, setSearchQuery] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [syncStatus, setSyncStatus] = useState('offline');
-  const [toastMessage, setToastMessage] = useState(''); // State untuk notifikasi kustom
+  const [toastMessage, setToastMessage] = useState('');
 
   // --- MODAL STATES ---
   const [modalCriteria, setModalCriteria] = useState({ isOpen: false, data: null });
   const [modalAlt, setModalAlt] = useState({ isOpen: false, data: null });
+
+  const navItems = [
+    { id: 'dashboard', label: 'Dashboard', icon: <TrendingUp size={18} className="md:w-5 md:h-5" /> },
+    { id: 'kriteria', label: 'Data Kriteria', icon: <FileText size={18} className="md:w-5 md:h-5" /> },
+    { id: 'alternatif', label: 'Data Alternatif', icon: <Users size={18} className="md:w-5 md:h-5" /> },
+    { id: 'proses', label: 'Proses VIKOR', icon: <Calculator size={18} className="md:w-5 md:h-5" /> },
+    { id: 'hasil', label: 'Hasil Ranking', icon: <Award size={18} className="md:w-5 md:h-5" /> },
+  ];
+
+  // =========================================================================
+  // BROWSER HISTORY SYNC (AGAR TOMBOL BACK HP BERFUNGSI)
+  // =========================================================================
+  useEffect(() => {
+    const handleHashChange = () => {
+      if (!isLoggedIn) return;
+      
+      const hash = window.location.hash.replace('#', '');
+      
+      // Jika hash kosong (pengguna menekan tombol back saat di Dashboard)
+      if (hash === '') {
+        setShowLogoutConfirm(true); // Munculkan pop-up logout
+        // Kembalikan hash ke dashboard secara diam-diam agar aplikasi tidak tertutup
+        window.history.pushState(null, '', '#dashboard');
+        setActiveTab('dashboard');
+        return;
+      }
+
+      const isValidTab = navItems.some(item => item.id === hash);
+      setActiveTab(isValidTab ? hash : 'dashboard');
+    };
+
+    if (isLoggedIn) {
+      // Saat baru login, pastikan URL diset ke #dashboard
+      if (!window.location.hash || window.location.hash === '') {
+        window.history.replaceState(null, '', '#dashboard');
+        setActiveTab('dashboard');
+      }
+      window.addEventListener('hashchange', handleHashChange);
+      return () => window.removeEventListener('hashchange', handleHashChange);
+    }
+  }, [isLoggedIn]);
+
+  // Fungsi navigasi baru yang menggunakan Hash URL
+  const handleNavigation = (tabId) => {
+    window.location.hash = tabId;
+    setIsMobileMenuOpen(false); // Tutup menu jika di HP
+  };
+
 
   // =========================================================================
   // API INTEGRATION (SINKRONISASI KE GOOGLE SHEETS)
@@ -110,7 +159,7 @@ export default function App() {
     setToastMessage(message);
     setTimeout(() => {
       setToastMessage('');
-    }, 3500); // Pesan hilang otomatis setelah 3.5 detik
+    }, 3500); 
   };
 
   const handleDataChange = () => {
@@ -190,7 +239,6 @@ export default function App() {
     alt.nisn.includes(searchQuery)
   );
 
-  // --- EXPORT & PRINT ---
   const exportToCSV = () => {
     if(!isCalculated) return;
     const sortedResults = [...vikorResults].sort((a, b) => a.Q - b.Q);
@@ -211,15 +259,12 @@ export default function App() {
 
   const printPDF = () => window.print();
 
-  // --- VIKOR CALCULATION ALGORITHM ---
   const calculateVikor = () => {
-    // 1. Cek apakah sudah dikalkulasi
     if (isCalculated) {
       showToast("Anda telah melakukan kalkulasi, silahkan lihat rangking");
       return;
     }
 
-    // 2. Cek apakah data kosong
     if (alternatives.length === 0 || criteria.length === 0) {
       showToast("Data alternatif dan kriteria tidak boleh kosong!");
       return; 
@@ -279,11 +324,22 @@ export default function App() {
   };
 
   // --- REUSABLE COMPONENTS ---
-  const PageHeader = ({ title, subtitle, action }) => (
+  const PageHeader = ({ title, subtitle, action, showBack = false }) => (
     <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 md:mb-8 gap-4 print:hidden">
-      <div>
-        <h2 className="text-xl md:text-2xl font-bold text-slate-800 tracking-tight">{title}</h2>
-        {subtitle && <p className="text-sm text-slate-500 mt-1">{subtitle}</p>}
+      <div className="flex items-start md:items-center gap-3 md:gap-4">
+        {showBack && (
+          <button 
+            onClick={() => window.history.length > 1 ? window.history.back() : handleNavigation('dashboard')}
+            className="flex-shrink-0 mt-0.5 md:mt-0 p-2 md:p-2.5 rounded-xl bg-white border border-slate-200 text-slate-500 hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-200 shadow-sm transition-all duration-300 group"
+            title="Kembali ke halaman sebelumnya"
+          >
+            <ArrowLeft size={18} className="md:w-5 md:h-5 group-hover:-translate-x-1 transition-transform duration-300" />
+          </button>
+        )}
+        <div>
+          <h2 className="text-xl md:text-2xl font-bold text-slate-800 tracking-tight">{title}</h2>
+          {subtitle && <p className="text-sm text-slate-500 mt-1">{subtitle}</p>}
+        </div>
       </div>
       {action && <div className="w-full md:w-auto overflow-x-auto pb-2 md:pb-0">{action}</div>}
     </div>
@@ -360,7 +416,10 @@ export default function App() {
     <div className="animate-in fade-in duration-500">
       <PageHeader title="Dashboard" subtitle="Ringkasan data sistem pendukung keputusan PIP SMPN 1 Pomalaa." />
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 md:gap-6 mb-8">
-        <div className="bg-white p-5 md:p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col hover:shadow-md transition-shadow">
+        <div 
+          className="bg-white p-5 md:p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col hover:shadow-md transition-shadow cursor-pointer hover:bg-slate-50"
+          onClick={() => handleNavigation('alternatif')}
+        >
           <div className="flex items-center gap-4 mb-4">
             <div className="p-3 md:p-3.5 bg-blue-50 text-blue-600 rounded-xl"><Users size={20} className="md:w-6 md:h-6" /></div>
             <div>
@@ -369,10 +428,14 @@ export default function App() {
             </div>
           </div>
           <div className="text-[10px] md:text-xs text-slate-400 flex items-center gap-1 mt-auto">
-            <TrendingUp size={14} className="text-emerald-500"/><span className="text-emerald-600 font-medium">Data aktif</span> untuk diproses
+            <TrendingUp size={14} className="text-emerald-500"/><span className="text-emerald-600 font-medium">Klik untuk kelola data</span>
           </div>
         </div>
-        <div className="bg-white p-5 md:p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col hover:shadow-md transition-shadow">
+
+        <div 
+          className="bg-white p-5 md:p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col hover:shadow-md transition-shadow cursor-pointer hover:bg-slate-50"
+          onClick={() => handleNavigation('kriteria')}
+        >
           <div className="flex items-center gap-4 mb-4">
             <div className="p-3 md:p-3.5 bg-indigo-50 text-indigo-600 rounded-xl"><FileText size={20} className="md:w-6 md:h-6" /></div>
             <div>
@@ -380,8 +443,11 @@ export default function App() {
               <p className="text-2xl md:text-3xl font-bold text-slate-800">{criteria.length}</p>
             </div>
           </div>
-          <div className="text-[10px] md:text-xs text-slate-400 mt-auto">Parameter penilaian aktif</div>
+          <div className="text-[10px] md:text-xs text-slate-400 mt-auto flex items-center gap-1">
+             <span className="text-indigo-600 font-medium">Klik untuk kelola kriteria</span>
+          </div>
         </div>
+
         <div className="bg-white p-5 md:p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col hover:shadow-md transition-shadow sm:col-span-2 md:col-span-1">
           <div className="flex items-center gap-4 mb-4">
             <div className="p-3 md:p-3.5 bg-purple-50 text-purple-600 rounded-xl"><Calculator size={20} className="md:w-6 md:h-6" /></div>
@@ -403,6 +469,7 @@ export default function App() {
       <PageHeader 
         title="Kelola Data Kriteria" 
         subtitle="Daftar parameter yang digunakan untuk penyeleksian PIP."
+        showBack={true}
         action={
           <button onClick={() => setModalCriteria({ isOpen: true, data: null })} className="bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2 px-3 md:py-2.5 md:px-4 rounded-xl flex items-center gap-2 text-xs md:text-sm shadow-sm transition-all whitespace-nowrap">
             <Plus size={16} /> Tambah Kriteria
@@ -441,7 +508,6 @@ export default function App() {
         </div>
       </div>
 
-      {/* MODAL KRITERIA */}
       {modalCriteria.isOpen && (
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden flex flex-col max-h-[90vh]">
@@ -487,6 +553,7 @@ export default function App() {
       <PageHeader 
         title="Data Alternatif Siswa" 
         subtitle="Daftar calon penerima bantuan PIP dan nilai matriks."
+        showBack={true}
         action={
           <div className="flex gap-2 md:gap-3">
              <div className="relative">
@@ -539,7 +606,6 @@ export default function App() {
         </div>
       </div>
 
-      {/* MODAL ALTERNATIF */}
       {modalAlt.isOpen && (
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden max-h-[90vh] flex flex-col">
@@ -581,7 +647,11 @@ export default function App() {
 
   const renderProses = () => (
     <div className="animate-in fade-in duration-500">
-      <PageHeader title="Proses Perhitungan VIKOR" subtitle="Kalkulasi algoritma VIKOR untuk mendapatkan indeks (Q)." />
+      <PageHeader 
+        title="Proses Perhitungan VIKOR" 
+        subtitle="Kalkulasi algoritma VIKOR untuk mendapatkan indeks (Q)." 
+        showBack={true}
+      />
       
       <div className="bg-indigo-50 border border-indigo-100 rounded-2xl p-4 md:p-6 mb-6 md:mb-8 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div>
@@ -634,7 +704,7 @@ export default function App() {
       
       {isCalculated && (
         <div className="flex justify-end gap-3">
-            <button onClick={() => setActiveTab('hasil')} className="w-full md:w-auto bg-white border border-slate-200 text-slate-700 font-medium py-2.5 px-5 rounded-xl hover:bg-slate-50 transition-all shadow-sm text-sm">
+            <button onClick={() => handleNavigation('hasil')} className="w-full md:w-auto bg-white border border-slate-200 text-slate-700 font-medium py-2.5 px-5 rounded-xl hover:bg-slate-50 transition-all shadow-sm text-sm">
               Lihat Ranking
             </button>
         </div>
@@ -650,6 +720,7 @@ export default function App() {
         <PageHeader 
           title="Hasil Perengkingan PIP" 
           subtitle="Daftar prioritas penerima PIP berdasarkan skor Q terkecil."
+          showBack={true}
         />
         <div className="hidden print:block mb-6 text-center">
             <h2 className="text-lg md:text-xl font-bold uppercase">Laporan Perengkingan PIP</h2>
@@ -731,14 +802,6 @@ export default function App() {
     );
   };
 
-  const navItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: <TrendingUp size={18} className="md:w-5 md:h-5" /> },
-    { id: 'kriteria', label: 'Data Kriteria', icon: <FileText size={18} className="md:w-5 md:h-5" /> },
-    { id: 'alternatif', label: 'Data Alternatif', icon: <Users size={18} className="md:w-5 md:h-5" /> },
-    { id: 'proses', label: 'Proses VIKOR', icon: <Calculator size={18} className="md:w-5 md:h-5" /> },
-    { id: 'hasil', label: 'Hasil Ranking', icon: <Award size={18} className="md:w-5 md:h-5" /> },
-  ];
-
   return (
     <div className="min-h-screen bg-slate-50 flex font-sans text-slate-800 print:bg-white print:text-black relative">
       
@@ -750,6 +813,39 @@ export default function App() {
           <button onClick={() => setToastMessage('')} className="text-slate-400 hover:text-white ml-2 transition-colors">
             <X size={16}/>
           </button>
+        </div>
+      )}
+
+      {/* MODAL KONFIRMASI LOGOUT */}
+      {showLogoutConfirm && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-in fade-in">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden flex flex-col scale-in-center">
+            <div className="p-6 text-center">
+              <div className="w-16 h-16 bg-rose-100 text-rose-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                <LogOut size={32} />
+              </div>
+              <h3 className="text-xl font-bold text-slate-800 mb-2">Konfirmasi Logout</h3>
+              <p className="text-sm text-slate-500">Apakah Anda yakin ingin keluar dari sistem?</p>
+            </div>
+            <div className="p-4 bg-slate-50 flex gap-3 justify-center border-t border-slate-100">
+              <button
+                onClick={() => setShowLogoutConfirm(false)}
+                className="px-5 py-2.5 text-sm font-medium text-slate-600 bg-white border border-slate-200 hover:bg-slate-100 rounded-xl transition-colors w-full"
+              >
+                Batal
+              </button>
+              <button
+                onClick={() => {
+                  setShowLogoutConfirm(false);
+                  setIsLoggedIn(false);
+                  window.history.replaceState(null, '', window.location.pathname); // Hapus hash saat keluar
+                }}
+                className="px-5 py-2.5 text-sm font-medium text-white bg-rose-600 hover:bg-rose-700 rounded-xl shadow-sm transition-colors w-full"
+              >
+                Ya, Keluar
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -784,7 +880,7 @@ export default function App() {
             {navItems.map(item => (
               <li key={item.id}>
                 <button 
-                  onClick={() => { setActiveTab(item.id); setIsMobileMenuOpen(false); }} 
+                  onClick={() => handleNavigation(item.id)} 
                   className={`w-full text-left px-3 md:px-4 py-2.5 md:py-3 rounded-xl flex items-center gap-3 transition-all text-sm ${
                     activeTab === item.id 
                       ? 'bg-indigo-50 text-indigo-700 font-semibold shadow-sm shadow-indigo-100/50' 
@@ -803,7 +899,7 @@ export default function App() {
 
         <div className="p-3 md:p-4 border-t border-slate-100 m-3 md:m-4">
           <button 
-            onClick={() => setIsLoggedIn(false)} 
+            onClick={() => setShowLogoutConfirm(true)} 
             className="w-full text-left px-3 md:px-4 py-2.5 md:py-3 text-xs md:text-sm font-medium flex items-center justify-center gap-2 text-rose-600 bg-rose-50 hover:bg-rose-100 rounded-xl transition-colors"
           >
              <LogOut size={16} className="md:w-[18px] md:h-[18px]" /> Keluar
