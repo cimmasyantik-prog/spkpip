@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Users, FileText, Calculator, Trophy, LogOut, Plus, Trash2, Edit3, 
-  School, ChevronRight, TrendingUp, Award, CheckCircle2, Clock, X, Search, Printer, Download, RefreshCw, Menu
+  School, ChevronRight, TrendingUp, Award, CheckCircle2, Clock, X, Search, Printer, Download, RefreshCw, Menu, Info
 } from 'lucide-react';
 
 export default function App() {
@@ -38,6 +38,7 @@ export default function App() {
   const [searchQuery, setSearchQuery] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [syncStatus, setSyncStatus] = useState('offline');
+  const [toastMessage, setToastMessage] = useState(''); // State untuk notifikasi kustom
 
   // --- MODAL STATES ---
   const [modalCriteria, setModalCriteria] = useState({ isOpen: false, data: null });
@@ -104,6 +105,13 @@ export default function App() {
   // =========================================================================
   // CRUD HANDLERS
   // =========================================================================
+
+  const showToast = (message) => {
+    setToastMessage(message);
+    setTimeout(() => {
+      setToastMessage('');
+    }, 3500); // Pesan hilang otomatis setelah 3.5 detik
+  };
 
   const handleDataChange = () => {
     setIsCalculated(false);
@@ -205,7 +213,17 @@ export default function App() {
 
   // --- VIKOR CALCULATION ALGORITHM ---
   const calculateVikor = () => {
-    if (alternatives.length === 0 || criteria.length === 0) return; 
+    // 1. Cek apakah sudah dikalkulasi
+    if (isCalculated) {
+      showToast("Anda telah melakukan kalkulasi, silahkan lihat rangking");
+      return;
+    }
+
+    // 2. Cek apakah data kosong
+    if (alternatives.length === 0 || criteria.length === 0) {
+      showToast("Data alternatif dan kriteria tidak boleh kosong!");
+      return; 
+    }
 
     const fPlus = {};
     const fMinus = {};
@@ -257,6 +275,7 @@ export default function App() {
 
     setVikorResults(results);
     setIsCalculated(true);
+    showToast("Kalkulasi berhasil! Silahkan lihat hasil di menu Ranking.");
   };
 
   // --- REUSABLE COMPONENTS ---
@@ -721,8 +740,19 @@ export default function App() {
   ];
 
   return (
-    <div className="min-h-screen bg-slate-50 flex font-sans text-slate-800 print:bg-white print:text-black">
+    <div className="min-h-screen bg-slate-50 flex font-sans text-slate-800 print:bg-white print:text-black relative">
       
+      {/* TOAST NOTIFICATION KUSTOM */}
+      {toastMessage && (
+        <div className="fixed top-4 right-4 md:top-6 md:right-6 bg-slate-800 text-white px-4 py-3 md:px-6 md:py-4 rounded-xl shadow-2xl z-[70] flex items-center gap-3 animate-in fade-in slide-in-from-top-4 border border-slate-700">
+          <Info size={20} className="text-indigo-400" />
+          <p className="text-xs md:text-sm font-medium">{toastMessage}</p>
+          <button onClick={() => setToastMessage('')} className="text-slate-400 hover:text-white ml-2 transition-colors">
+            <X size={16}/>
+          </button>
+        </div>
+      )}
+
       {/* Overlay Background for Mobile Sidebar */}
       {isMobileMenuOpen && (
         <div 
